@@ -27,9 +27,15 @@ const API_URL = 'http://127.0.0.1:5000/api';
 const documentTypes = [
   {
     id: 'transcript',
-    label: 'Academic Transcript *',
+    label: 'Academic Transcript',
     description: 'Upload your official transcript (PDF or DOCX)',
-    required: true,
+    required: false,
+  },
+  {
+    id: 'cv',
+    label: 'CV / Resume',
+    description: 'Upload your CV or Resume - we can extract info from this too!',
+    required: false,
   },
   {
     id: 'degree',
@@ -64,8 +70,8 @@ export default function DocumentUploadPage({ userId, onDataExtracted }) {
   };
 
   const handleParse = async () => {
-    if (!files.transcript) {
-      alert('Please upload at least your transcript');
+    if (Object.keys(files).length === 0) {
+      alert('Please upload at least one document (Transcript or CV)');
       return;
     }
 
@@ -76,18 +82,22 @@ export default function DocumentUploadPage({ userId, onDataExtracted }) {
       const formData = new FormData();
       Object.keys(files).forEach(key => {
         formData.append(key, files[key]);
+        console.log(`Adding file: ${key} = ${files[key].name}`);
       });
 
       const progressInterval = setInterval(() => {
         setProgress(prev => Math.min(prev + 10, 90));
-      }, 200);
+      }, 300);
 
+      console.log('Sending files to backend...');
       const response = await axios.post(`${API_URL}/parse-documents`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
       clearInterval(progressInterval);
       setProgress(100);
+
+      console.log('Response:', response.data);
 
       if (response.data.success) {
         setTimeout(() => {
@@ -96,7 +106,7 @@ export default function DocumentUploadPage({ userId, onDataExtracted }) {
       }
     } catch (error) {
       console.error('Error:', error);
-      alert('Failed to parse documents. Please try again.');
+      alert('Failed to parse documents. Please check the console and try again.');
     } finally {
       setLoading(false);
     }
@@ -110,12 +120,12 @@ export default function DocumentUploadPage({ userId, onDataExtracted }) {
             Upload Your Documents
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Our AI will automatically extract your information from the documents
+            Our AI will automatically extract your information from your documents
           </Typography>
         </Box>
 
         <Alert severity="info" sx={{ mb: 3 }}>
-          Upload your transcript and we'll automatically fill out your application form!
+          💡 Upload your <strong>Transcript</strong> or <strong>CV/Resume</strong> and we'll automatically fill out your application form using AI!
         </Alert>
 
         <List>
@@ -177,7 +187,7 @@ export default function DocumentUploadPage({ userId, onDataExtracted }) {
         {loading && (
           <Box sx={{ mt: 3 }}>
             <Typography variant="body2" gutterBottom align="center">
-              Parsing documents... {progress}%
+              AI is reading your documents... {progress}%
             </Typography>
             <LinearProgress variant="determinate" value={progress} />
           </Box>
@@ -188,13 +198,13 @@ export default function DocumentUploadPage({ userId, onDataExtracted }) {
           variant="contained"
           size="large"
           onClick={handleParse}
-          disabled={loading || !files.transcript}
+          disabled={loading || Object.keys(files).length === 0}
           sx={{ mt: 3, py: 1.5 }}
         >
           {loading ? (
             <CircularProgress size={24} color="inherit" />
           ) : (
-            'Parse Documents & Continue'
+            '🤖 Extract Information with AI'
           )}
         </Button>
       </Paper>

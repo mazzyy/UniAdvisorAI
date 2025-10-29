@@ -1,0 +1,14 @@
+flask
+flask-cors
+google-generativeai
+chromadb
+pandas
+sentence-transformers
+PyPDF2
+python-docx
+selenium==4.25.0
+webdriver-manager==4.0.2
+pandas==2.2.3
+numpy==2.0.2
+requests==2.32.3
+urllib3==2.2.3

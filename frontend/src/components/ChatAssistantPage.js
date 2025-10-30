@@ -549,15 +549,28 @@ export default function ChatAssistantPage({ userId, applicationData }) {
         )}
 
         {/* Recommendations Grid - Equal Height Cards */}
-        {!loading && recommendations.length > 0 && (
-          <Grid container spacing={3}>
-            {recommendations.map((program, index) => (
-              <Grid item xs={12} md={6} lg={4} key={index} sx={{ display: 'flex' }}>
-                <UniversityCard program={program} index={index} />
-              </Grid>
-            ))}
-          </Grid>
-        )}
+        {/* Recommendations Grid - Equal Height Cards */}
+            {!loading && recommendations.length > 0 && (
+            <Grid 
+                container 
+                spacing={3}
+                sx={{
+                display: 'grid',
+                gridTemplateColumns: {
+                    xs: '1fr',
+                    md: 'repeat(2, 1fr)',
+                    lg: 'repeat(3, 1fr)'
+                },
+                gap: 3
+                }}
+            >
+                {recommendations.map((program, index) => (
+                <Box key={index}>
+                    <UniversityCard program={program} index={index} />
+                </Box>
+                ))}
+            </Grid>
+            )}
 
         {/* No Results */}
         {!loading && recommendations.length === 0 && (

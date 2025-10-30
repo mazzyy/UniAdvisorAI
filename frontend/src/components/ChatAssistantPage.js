@@ -20,22 +20,20 @@ import {
   Drawer,
   List,
   ListItem,
-  Collapse,
   Tooltip,
 } from '@mui/material';
 import {
   Send as SendIcon,
   School as SchoolIcon,
-  LocationOn as LocationIcon,
   CalendarToday as CalendarIcon,
   Language as LanguageIcon,
   TrendingUp as TrendingUpIcon,
   OpenInNew as OpenIcon,
-  ExpandMore as ExpandMoreIcon,
   Chat as ChatIcon,
   Close as CloseIcon,
   SmartToy as BotIcon,
   Person as PersonIcon,
+  Link as LinkIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
 
@@ -69,8 +67,6 @@ export default function ChatAssistantPage({ userId, applicationData }) {
     setLoading(true);
     try {
       const query = buildRecommendationQuery();
-      console.log('Getting recommendations with query:', query);
-
       const response = await axios.post(`${API_URL}/get-recommendations`, {
         userId: userId,
         query: query
@@ -92,25 +88,117 @@ export default function ChatAssistantPage({ userId, applicationData }) {
 
     let query = `Find the best university programs for me. `;
     
-    if (profile.desired_degree) {
-      query += `I want to pursue ${profile.desired_degree} degree. `;
-    }
-    if (profile.field_of_study) {
-      query += `My field of interest is ${profile.field_of_study}. `;
-    }
-    if (profile.cgpa && profile.gpa_scale) {
-      query += `My CGPA is ${profile.cgpa}/${profile.gpa_scale}. `;
-    }
-    if (profile.major) {
-      query += `I studied ${profile.major}. `;
-    }
-    if (countries.length > 0) {
-      query += `I'm interested in studying in ${countries.join(', ')}. `;
-    }
+    if (profile.desired_degree) query += `I want to pursue ${profile.desired_degree} degree. `;
+    if (profile.field_of_study) query += `My field of interest is ${profile.field_of_study}. `;
+    if (profile.cgpa && profile.gpa_scale) query += `My CGPA is ${profile.cgpa}/${profile.gpa_scale}. `;
+    if (profile.major) query += `I studied ${profile.major}. `;
+    if (countries.length > 0) query += `I'm interested in studying in ${countries.join(', ')}. `;
 
     query += `Show me the top matching programs with admission requirements and deadlines.`;
-    
     return query;
+  };
+
+  const parseUniversitiesFromText = (text) => {
+    // Extract university names and URLs from chat response
+    const universities = [];
+    const lines = text.split('\n');
+    
+    let currentUniv = null;
+    
+    for (let line of lines) {
+      line = line.trim();
+      
+      // Match numbered universities (e.g., "1. RWTH Aachen University:")
+      const univMatch = line.match(/^\d+\.\s+\*?\*?([^:*]+)\*?\*?:/);
+      if (univMatch) {
+        if (currentUniv) {
+          universities.push(currentUniv);
+        }
+        currentUniv = {
+          course: univMatch[1].trim(),
+          institution: univMatch[1].trim(),
+          url: '#',
+          degree_type: applicationData?.profile?.desired_degree || 'PhD',
+          admission_requirements: '',
+          language_requirements: '',
+          deadline: '',
+          match_score: 85
+        };
+      }
+      
+      // Extract website URL
+      if (currentUniv && (line.includes('Website:') || line.includes('website:'))) {
+        const urlMatch = line.match(/https?:\/\/[^\s)]+/);
+        if (urlMatch) {
+          currentUniv.url = urlMatch[0].replace(/\)$/, '');
+        }
+      }
+      
+      // Extract why consider
+      if (currentUniv && (line.includes('Why consider') || line.includes('Why Consider'))) {
+        const nextLine = lines[lines.indexOf(line.trim()) + 1];
+        if (nextLine) {
+          currentUniv.admission_requirements = nextLine.trim();
+        }
+      }
+    }
+    
+    if (currentUniv) {
+      universities.push(currentUniv);
+    }
+    
+    return universities;
+  };
+
+  const formatChatMessage = (text) => {
+    // Format text with proper line breaks and structure
+    const lines = text.split('\n');
+    const formatted = [];
+    
+    for (let line of lines) {
+      line = line.trim();
+      if (!line) continue;
+      
+      // Headers (numbered items or bold text)
+      if (line.match(/^\d+\.\s+\*\*/) || line.match(/^\*\*[^*]+\*\*$/)) {
+        formatted.push({
+          type: 'header',
+          content: line.replace(/\*\*/g, '').replace(/^\d+\.\s+/, '')
+        });
+      }
+      // Bullet points
+      else if (line.startsWith('-') || line.startsWith('•') || line.startsWith('*')) {
+        formatted.push({
+          type: 'bullet',
+          content: line.replace(/^[-•*]\s*/, '')
+        });
+      }
+      // Links
+      else if (line.includes('http')) {
+        const urlMatch = line.match(/(https?:\/\/[^\s)]+)/);
+        if (urlMatch) {
+          formatted.push({
+            type: 'link',
+            content: line,
+            url: urlMatch[1]
+          });
+        } else {
+          formatted.push({
+            type: 'text',
+            content: line
+          });
+        }
+      }
+      // Regular text
+      else {
+        formatted.push({
+          type: 'text',
+          content: line
+        });
+      }
+    }
+    
+    return formatted;
   };
 
   const handleSendMessage = async () => {
@@ -118,7 +206,8 @@ export default function ChatAssistantPage({ userId, applicationData }) {
 
     const userMessage = {
       role: 'user',
-      content: input
+      content: input,
+      formatted: [{ type: 'text', content: input }]
     };
 
     setMessages(prev => [...prev, userMessage]);
@@ -132,18 +221,28 @@ export default function ChatAssistantPage({ userId, applicationData }) {
       });
 
       if (response.data.success) {
-        // Format the response sections into a single string
         const responseText = response.data.response
           .map(section => section.content)
           .join('\n');
 
+        // Format the message
+        const formatted = formatChatMessage(responseText);
+        
         const botMessage = {
           role: 'assistant',
-          content: responseText
+          content: responseText,
+          formatted: formatted
         };
         setMessages(prev => [...prev, botMessage]);
 
-        // Add new recommendations from chat
+        // Parse universities from the response text
+        const newUniversities = parseUniversitiesFromText(responseText);
+        if (newUniversities.length > 0) {
+          console.log('Found new universities in chat:', newUniversities);
+          setRecommendations(prev => [...newUniversities, ...prev]);
+        }
+
+        // Also add from API response if available
         if (response.data.new_recommendations && response.data.new_recommendations.length > 0) {
           setRecommendations(prev => [...response.data.new_recommendations, ...prev]);
         }
@@ -152,12 +251,55 @@ export default function ChatAssistantPage({ userId, applicationData }) {
       console.error('Chat error:', error);
       const errorMessage = {
         role: 'assistant',
-        content: 'Sorry, something went wrong. Please try again.'
+        content: 'Sorry, something went wrong. Please try again.',
+        formatted: [{ type: 'text', content: 'Sorry, something went wrong. Please try again.' }]
       };
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setChatLoading(false);
     }
+  };
+
+  const renderFormattedMessage = (formatted) => {
+    return formatted.map((item, idx) => {
+      switch (item.type) {
+        case 'header':
+          return (
+            <Typography key={idx} variant="subtitle1" sx={{ fontWeight: 700, mt: 1.5, mb: 0.5 }}>
+              {item.content}
+            </Typography>
+          );
+        case 'bullet':
+          return (
+            <Box key={idx} sx={{ display: 'flex', gap: 1, mb: 0.5 }}>
+              <Typography>•</Typography>
+              <Typography variant="body2" sx={{ flex: 1 }}>
+                {item.content}
+              </Typography>
+            </Box>
+          );
+        case 'link':
+          return (
+            <Box key={idx} sx={{ mb: 1 }}>
+              <Button
+                size="small"
+                startIcon={<LinkIcon />}
+                href={item.url}
+                target="_blank"
+                sx={{ textTransform: 'none' }}
+              >
+                {item.url}
+              </Button>
+            </Box>
+          );
+        default:
+          return (
+            <Typography key={idx} variant="body2" sx={{ mb: 0.5, lineHeight: 1.6 }}>
+              {item.content}
+            </Typography>
+          );
+      }
+    });
   };
 
   const UniversityCard = ({ program, index }) => {
@@ -167,7 +309,7 @@ export default function ChatAssistantPage({ userId, applicationData }) {
       <Card 
         elevation={3} 
         sx={{ 
-          height: '100%', 
+          height: '100%',
           display: 'flex', 
           flexDirection: 'column',
           transition: 'all 0.3s',
@@ -177,11 +319,12 @@ export default function ChatAssistantPage({ userId, applicationData }) {
           }
         }}
       >
-        {/* Card Header */}
+        {/* Card Header - Fixed Height */}
         <Box sx={{ 
           p: 2.5, 
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          color: 'white' 
+          color: 'white',
+          minHeight: '140px'
         }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
             <Avatar sx={{ 
@@ -199,28 +342,47 @@ export default function ChatAssistantPage({ userId, applicationData }) {
               sx={{ 
                 bgcolor: 'rgba(255,255,255,0.25)', 
                 color: 'white',
-                fontWeight: 600,
-                backdropFilter: 'blur(10px)'
+                fontWeight: 600
               }}
             />
           </Box>
-          <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.3 }}>
+          <Typography 
+            variant="h6" 
+            sx={{ 
+              fontWeight: 700, 
+              lineHeight: 1.3,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical'
+            }}
+          >
             {program.course}
           </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', mt: 1, opacity: 0.9 }}>
-            <SchoolIcon sx={{ fontSize: 18, mr: 0.5 }} />
-            <Typography variant="body2">
+          <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+            <SchoolIcon sx={{ fontSize: 16, mr: 0.5 }} />
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                fontSize: '0.875rem',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}
+            >
               {program.institution}
             </Typography>
           </Box>
         </Box>
 
-        <CardContent sx={{ flexGrow: 1, p: 2.5 }}>
+        {/* Card Content - Flexible Height */}
+        <CardContent sx={{ flexGrow: 1, p: 2.5, display: 'flex', flexDirection: 'column' }}>
           {/* Admission Requirements */}
-          <Box sx={{ mb: 2.5 }}>
+          <Box sx={{ mb: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-              <TrendingUpIcon sx={{ fontSize: 20, color: '#667eea', mr: 1 }} />
-              <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#333' }}>
+              <TrendingUpIcon sx={{ fontSize: 18, color: '#667eea', mr: 1 }} />
+              <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: '0.875rem' }}>
                 Admission Requirements
               </Typography>
             </Box>
@@ -228,12 +390,14 @@ export default function ChatAssistantPage({ userId, applicationData }) {
               variant="body2" 
               color="text.secondary"
               sx={{ 
-                pl: 3.5,
-                lineHeight: 1.6,
+                pl: 3,
+                fontSize: '0.813rem',
+                lineHeight: 1.5,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
                 display: '-webkit-box',
-                WebkitLineClamp: isExpanded ? 'unset' : 3,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden'
+                WebkitLineClamp: isExpanded ? 'unset' : 2,
+                WebkitBoxOrient: 'vertical'
               }}
             >
               {program.admission_requirements || 'Check university website for details'}
@@ -241,10 +405,10 @@ export default function ChatAssistantPage({ userId, applicationData }) {
           </Box>
 
           {/* Language Requirements */}
-          <Box sx={{ mb: 2.5 }}>
+          <Box sx={{ mb: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-              <LanguageIcon sx={{ fontSize: 20, color: '#667eea', mr: 1 }} />
-              <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#333' }}>
+              <LanguageIcon sx={{ fontSize: 18, color: '#667eea', mr: 1 }} />
+              <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: '0.875rem' }}>
                 Language Requirements
               </Typography>
             </Box>
@@ -252,12 +416,14 @@ export default function ChatAssistantPage({ userId, applicationData }) {
               variant="body2" 
               color="text.secondary"
               sx={{ 
-                pl: 3.5,
-                lineHeight: 1.6,
+                pl: 3,
+                fontSize: '0.813rem',
+                lineHeight: 1.5,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
                 display: '-webkit-box',
                 WebkitLineClamp: isExpanded ? 'unset' : 2,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden'
+                WebkitBoxOrient: 'vertical'
               }}
             >
               {program.language_requirements || 'English proficiency required'}
@@ -269,15 +435,16 @@ export default function ChatAssistantPage({ userId, applicationData }) {
             bgcolor: '#f8f9ff', 
             p: 1.5, 
             borderRadius: 1,
-            border: '1px solid #e3e8ff'
+            border: '1px solid #e3e8ff',
+            mt: 'auto'
           }}>
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <CalendarIcon sx={{ fontSize: 18, color: '#667eea', mr: 1 }} />
+              <CalendarIcon sx={{ fontSize: 16, color: '#667eea', mr: 1 }} />
               <Box>
-                <Typography variant="caption" color="text.secondary" display="block">
+                <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.7rem' }}>
                   Application Deadline
                 </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 600, color: '#333' }}>
+                <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.813rem' }}>
                   {program.deadline || 'Check university website'}
                 </Typography>
               </Box>
@@ -285,17 +452,18 @@ export default function ChatAssistantPage({ userId, applicationData }) {
           </Box>
 
           {/* Expand Button */}
-          {(program.admission_requirements?.length > 150 || program.language_requirements?.length > 100) && (
+          {(program.admission_requirements?.length > 100 || program.language_requirements?.length > 80) && (
             <Button
               size="small"
               onClick={() => setExpandedCard(isExpanded ? null : index)}
-              sx={{ mt: 1, textTransform: 'none' }}
+              sx={{ mt: 1, textTransform: 'none', fontSize: '0.75rem' }}
             >
               {isExpanded ? 'Show Less' : 'Show More'}
             </Button>
           )}
         </CardContent>
 
+        {/* Card Actions - Fixed Height */}
         <CardActions sx={{ p: 2, pt: 0 }}>
           <Button 
             fullWidth 
@@ -308,10 +476,10 @@ export default function ChatAssistantPage({ userId, applicationData }) {
               py: 1,
               fontWeight: 600,
               textTransform: 'none',
-              fontSize: '0.95rem'
+              fontSize: '0.875rem'
             }}
           >
-            View Program Details
+            View Details
           </Button>
         </CardActions>
       </Card>
@@ -319,7 +487,7 @@ export default function ChatAssistantPage({ userId, applicationData }) {
   };
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: '#f5f7fa' }}>
+    <Box sx={{ minHeight: '100vh', bgcolor: '#f5f7fa', pb: 4 }}>
       <Container maxWidth="xl" sx={{ py: 4 }}>
         {/* Profile Summary */}
         <Paper elevation={3} sx={{ 
@@ -380,11 +548,11 @@ export default function ChatAssistantPage({ userId, applicationData }) {
           </Box>
         )}
 
-        {/* Recommendations Grid */}
+        {/* Recommendations Grid - Equal Height Cards */}
         {!loading && recommendations.length > 0 && (
           <Grid container spacing={3}>
             {recommendations.map((program, index) => (
-              <Grid item xs={12} md={6} lg={4} key={index}>
+              <Grid item xs={12} md={6} lg={4} key={index} sx={{ display: 'flex' }}>
                 <UniversityCard program={program} index={index} />
               </Grid>
             ))}
@@ -393,14 +561,14 @@ export default function ChatAssistantPage({ userId, applicationData }) {
 
         {/* No Results */}
         {!loading && recommendations.length === 0 && (
-          <Alert severity="info" sx={{ mt: 3 }}>
+          <Alert severity="info">
             No matching programs found. Try using the chat assistant to refine your search.
           </Alert>
         )}
       </Container>
 
       {/* Floating Chat Button */}
-      <Tooltip title="Chat with AI Assistant" placement="left">
+      <Tooltip title="Chat with AI Assistant" placement="right">
         <Fab
           color="primary"
           sx={{
@@ -410,6 +578,7 @@ export default function ChatAssistantPage({ userId, applicationData }) {
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             width: 64,
             height: 64,
+            zIndex: 1000,
             '&:hover': {
               transform: 'scale(1.1)',
             }
@@ -427,14 +596,14 @@ export default function ChatAssistantPage({ userId, applicationData }) {
         onClose={() => setChatOpen(false)}
         sx={{
           '& .MuiDrawer-paper': {
-            width: { xs: '100%', sm: 400 },
+            width: { xs: '100%', sm: 450 },
             boxShadow: 3,
           }
         }}
       >
         {/* Chat Header */}
         <Box sx={{ 
-          p: 2, 
+          p: 2.5, 
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
           color: 'white',
           display: 'flex',
@@ -443,10 +612,10 @@ export default function ChatAssistantPage({ userId, applicationData }) {
         }}>
           <Box>
             <Typography variant="h6" sx={{ fontWeight: 700 }}>
-              💬 AI Assistant
+              💬 AI Course Assistant
             </Typography>
             <Typography variant="caption">
-              Ask me anything about programs
+              Ask about programs and get recommendations
             </Typography>
           </Box>
           <IconButton onClick={() => setChatOpen(false)} sx={{ color: 'white' }}>
@@ -465,15 +634,15 @@ export default function ChatAssistantPage({ userId, applicationData }) {
           {messages.length === 0 ? (
             <Box sx={{ textAlign: 'center', py: 8 }}>
               <BotIcon sx={{ fontSize: 80, color: '#ccc', mb: 2 }} />
-              <Typography variant="h6" color="text.secondary">
+              <Typography variant="h6" color="text.secondary" gutterBottom>
                 Hello! How can I help you?
               </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              <Typography variant="body2" color="text.secondary">
                 Ask about programs, requirements, or universities
               </Typography>
             </Box>
           ) : (
-            <List>
+            <List sx={{ p: 0 }}>
               {messages.map((msg, idx) => (
                 <ListItem 
                   key={idx}
@@ -484,11 +653,19 @@ export default function ChatAssistantPage({ userId, applicationData }) {
                     p: 0
                   }}
                 >
-                  <Box sx={{ display: 'flex', gap: 1, maxWidth: '85%', width: '100%', flexDirection: msg.role === 'user' ? 'row-reverse' : 'row' }}>
+                  <Box sx={{ 
+                    display: 'flex', 
+                    gap: 1, 
+                    maxWidth: '90%', 
+                    width: '100%', 
+                    flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
+                    alignItems: 'flex-start'
+                  }}>
                     <Avatar sx={{ 
                       bgcolor: msg.role === 'user' ? '#667eea' : '#4caf50',
                       width: 36,
-                      height: 36
+                      height: 36,
+                      flexShrink: 0
                     }}>
                       {msg.role === 'user' ? <PersonIcon /> : <BotIcon />}
                     </Avatar>
@@ -497,11 +674,14 @@ export default function ChatAssistantPage({ userId, applicationData }) {
                       bgcolor: msg.role === 'user' ? '#667eea' : 'white',
                       color: msg.role === 'user' ? 'white' : 'black',
                       borderRadius: 2,
-                      flexGrow: 1
+                      flexGrow: 1,
+                      boxShadow: 2
                     }}>
-                      <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
-                        {msg.content}
-                      </Typography>
+                      {msg.formatted ? renderFormattedMessage(msg.formatted) : (
+                        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+                          {msg.content}
+                        </Typography>
+                      )}
                     </Paper>
                   </Box>
                 </ListItem>

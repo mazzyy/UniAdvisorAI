@@ -6,13 +6,7 @@ from rag_pipeline import DAADCourseRAG
 
 app = Flask(__name__)
 
-CORS(app, resources={
-    r"/api/*": {
-        "origins": ["http://localhost:3001", "http://127.0.0.1:3001"],
-        "methods": ["GET", "POST", "OPTIONS"],
-        "allow_headers": ["Content-Type"]
-    }
-})
+CORS(app)
 
 parser = DocumentParser()
 rag = DAADCourseRAG()

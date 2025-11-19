@@ -4,8 +4,10 @@ import PyPDF2
 import docx
 import json
 import io
+from dotenv import load_dotenv
 
-os.environ["GOOGLE_API_KEY"] = "AIzaSyC-ygakb22_-h-sQQkJI8Q8P5Xg-7CPVm8"
+load_dotenv()
+# os.environ["GOOGLE_API_KEY"] = "AIzaSyC-ygakb22_-h-sQQkJI8Q8P5Xg-7CPVm8"
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
 class DocumentParser:

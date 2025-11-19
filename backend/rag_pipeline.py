@@ -4,9 +4,11 @@ from chromadb.utils import embedding_functions
 import os
 from load_data import load_all_courses, prepare_course_text
 import pandas as pd
+from dotenv import load_dotenv
 
+load_dotenv()
 # Configure Gemini
-os.environ["GOOGLE_API_KEY"] = "AIzaSyC-ygakb22_-h-sQQkJI8Q8P5Xg-7CPVm8"
+# os.environ["GOOGLE_API_KEY"] = "AIzaSyC-ygakb22_-h-sQQkJI8Q8P5Xg-7CPVm8"
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
 class DAADCourseRAG:

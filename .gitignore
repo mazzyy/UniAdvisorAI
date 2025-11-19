@@ -125,3 +125,6 @@ checkpoints/
 
 # Ignore compiled JS maps
 *.map
+
+# API keys
+/backend/.env

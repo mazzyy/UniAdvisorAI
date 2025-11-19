@@ -8,7 +8,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 # Configure Gemini
-# os.environ["GOOGLE_API_KEY"] = "AIzaSyC-ygakb22_-h-sQQkJI8Q8P5Xg-7CPVm8"
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
 class DAADCourseRAG:

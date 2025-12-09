@@ -51,14 +51,26 @@ def parse_documents():
             print(f"Content-Type: {file.content_type}")
             
             try:
-                text = parser.extract_text(file, file.filename)
+                # Read file content
+                file_content = file.read()
+                print(f"📥 File size: {len(file_content)} bytes")
+                text = parser.extract_text(file_content, file.filename)
                 
                 if text and len(text) > 50:
                     documents_to_parse.append(('transcript', text))
                     extracted_data['raw_documents']['transcript'] = text[:500]
                     print(f"✅ Extracted {len(text)} characters from transcript")
+                    
                 else:
-                    print("⚠️  No text extracted from transcript")
+                    image_found, image_count, text = parser.parse_images(file_content, file.filename)
+                    
+                    if image_found and len(text) > 50:
+                        documents_to_parse.append(('transcript', text))
+                        extracted_data['raw_documents']['transcript'] = text[:500]
+                        print(f"✅ Extracted {len(text)} characters from transcript")
+                        
+                    else:
+                        print("⚠️  No text extracted from transcript")
             except Exception as e:
                 print(f"❌ Error processing transcript: {str(e)}")
                 import traceback

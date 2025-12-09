@@ -82,9 +82,11 @@ def parse_documents():
             file = files['cv']
             print(f"Filename: {file.filename}")
             print(f"Content-Type: {file.content_type}")
+            file_content = file.read()
+            print(f"📥 File size: {len(file_content)} bytes")
             
             try:
-                text = parser.extract_text(file, file.filename)
+                text = parser.extract_text(file_content, file.filename)
                 
                 if text and len(text) > 50:
                     documents_to_parse.append(('cv', text))
@@ -102,16 +104,28 @@ def parse_documents():
             print("\n📜 Processing DEGREE CERTIFICATE...")
             file = files['degree']
             print(f"Filename: {file.filename}")
+            print(f"Content-Type: {file.content_type}")
+            file_content = file.read()
+            print(f"📥 File size: {len(file_content)} bytes")
             
             try:
-                text = parser.extract_text(file, file.filename)
+                text = parser.extract_text(file_content, file.filename)
                 
                 if text and len(text) > 50:
                     documents_to_parse.append(('degree', text))
                     extracted_data['raw_documents']['degree'] = text[:500]
                     print(f"✅ Extracted {len(text)} characters from degree")
+                
                 else:
-                    print("⚠️  No text extracted from degree")
+                    image_found, image_count, text = parser.parse_images(file_content, file.filename)
+                    
+                    if image_found and len(text) > 50:
+                        documents_to_parse.append(('degree', text))
+                        extracted_data['raw_documents']['degree'] = text[:500]
+                        print(f"✅ Extracted {len(text)} characters from degree")
+                        
+                    else:
+                        print("⚠️  No text extracted from degree")
             except Exception as e:
                 print(f"❌ Error processing degree: {str(e)}")
                 import traceback
@@ -122,16 +136,28 @@ def parse_documents():
             print("\n🌍 Processing LANGUAGE CERTIFICATE...")
             file = files['language_cert']
             print(f"Filename: {file.filename}")
+            print(f"Content-Type: {file.content_type}")
+            file_content = file.read()
+            print(f"📥 File size: {len(file_content)} bytes")
             
             try:
-                text = parser.extract_text(file, file.filename)
+                text = parser.extract_text(file_content, file.filename)
                 
                 if text and len(text) > 50:
                     documents_to_parse.append(('language_cert', text))
                     extracted_data['raw_documents']['language_cert'] = text[:500]
                     print(f"✅ Extracted {len(text)} characters from language cert")
+                
                 else:
-                    print("⚠️  No text extracted from language certificate")
+                    image_found, image_count, text = parser.parse_images(file_content, file.filename)
+                    
+                    if image_found and len(text) > 50:
+                        documents_to_parse.append(('language_cert', text))
+                        extracted_data['raw_documents']['language_cert'] = text[:500]
+                        print(f"✅ Extracted {len(text)} characters from language cert")
+                        
+                    else:
+                        print("⚠️  No text extracted from language certificate")
             except Exception as e:
                 print(f"❌ Error processing language cert: {str(e)}")
                 import traceback

@@ -25,17 +25,17 @@ class DocumentParser:
             pdf_reader = PyPDF2.PdfReader(pdf_file)
             text = ""
             
-            print(f"📄 PDF has {len(pdf_reader.pages)} pages")
+            print(f"PDF has {len(pdf_reader.pages)} pages")
             
             for i, page in enumerate(pdf_reader.pages):
                 page_text = page.extract_text()
                 text += page_text + "\n"
                 print(f"Page {i+1} extracted {len(page_text)} characters")
             
-            print(f"✅ Total extracted: {len(text)} characters")
+            print(f"Total extracted: {len(text)} characters")
             return text
         except Exception as e:
-            print(f"❌ Error reading PDF: {str(e)}")
+            print(f"Error reading PDF: {str(e)}")
             return ""
     
     def extract_text_from_docx(self, file_content):
@@ -44,10 +44,10 @@ class DocumentParser:
             docx_file = io.BytesIO(file_content)
             doc = docx.Document(docx_file)
             text = "\n".join([paragraph.text for paragraph in doc.paragraphs])
-            print(f"✅ DOCX extracted: {len(text)} characters")
+            print(f"DOCX extracted: {len(text)} characters")
             return text
         except Exception as e:
-            print(f"❌ Error reading DOCX: {str(e)}")
+            print(f"Error reading DOCX: {str(e)}")
             return ""
     
     def extract_text(self, file, filename):
@@ -55,24 +55,24 @@ class DocumentParser:
         try:
             # Read file content
             file_content = file.read()
-            print(f"📥 File size: {len(file_content)} bytes")
+            print(f"File size: {len(file_content)} bytes")
             
             if filename.lower().endswith('.pdf'):
                 text = self.extract_text_from_pdf(file_content)
             elif filename.lower().endswith(('.docx', '.doc')):
                 text = self.extract_text_from_docx(file_content)
             else:
-                print(f"❌ Unsupported file format: {filename}")
+                print(f"Unsupported file format: {filename}")
                 return ""
             
             # Show preview of extracted text
             if text:
                 preview = text[:500].replace('\n', ' ')
-                print(f"📝 Text preview: {preview}...")
+                print(f"Text preview: {preview}...")
             
             return text
         except Exception as e:
-            print(f"❌ Error extracting text: {str(e)}")
+            print(f"Error extracting text: {str(e)}")
             return ""
     
     def parse_any_document(self, document_text, doc_type="transcript"):
@@ -113,11 +113,11 @@ IMPORTANT:
 """
         
         try:
-            print(f"🤖 Sending {len(document_text)} characters to Gemini...")
+            print(f"Sending {len(document_text)} characters to Gemini...")
             response = self.model.generate_content(prompt)
             text = response.text.strip()
             
-            print(f"📨 Gemini response length: {len(text)} characters")
+            print(f"Gemini response length: {len(text)} characters")
             print(f"Raw response: {text[:300]}...")
             
             # Clean the response - remove markdown code blocks
@@ -129,27 +129,27 @@ IMPORTANT:
             
             if json_start != -1 and json_end > json_start:
                 json_text = text[json_start:json_end]
-                print(f"🔍 Extracted JSON: {json_text[:200]}...")
+                print(f"Extracted JSON: {json_text[:200]}...")
                 
                 data = json.loads(json_text)
-                print(f"✅ Successfully parsed data")
+                print(f"Successfully parsed data")
                 
                 # Log what we found
                 for key, value in data.items():
                     if value and value != "null":
-                        print(f"  ✓ {key}: {value}")
+                        print(f"  {key}: {value}")
                 
                 return data
             else:
-                print("❌ No JSON found in response")
+                print("No JSON found in response")
                 return None
             
         except json.JSONDecodeError as e:
-            print(f"❌ JSON parsing error: {e}")
+            print(f"JSON parsing error: {e}")
             print(f"Failed text: {text[:500]}")
             return None
         except Exception as e:
-            print(f"❌ Error parsing document: {e}")
+            print(f"Error parsing document: {e}")
             import traceback
             traceback.print_exc()
             return None

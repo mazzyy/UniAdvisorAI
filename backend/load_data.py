@@ -21,13 +21,13 @@ def load_all_courses():
         
         # Check if folder exists
         if not folder_path.exists():
-            print(f"⚠️  Folder '{folder}' not found, skipping...")
+            print(f"Folder '{folder}' not found, skipping...")
             continue
         
         # Find all CSV files in the folder
         csv_files = list(folder_path.glob('*.csv'))
         
-        print(f"📂 Loading {len(csv_files)} file(s) from {folder}/")
+        print(f"Loading {len(csv_files)} file(s) from {folder}/")
         
         for csv_file in csv_files:
             try:
@@ -41,18 +41,18 @@ def load_all_courses():
                 df['source_file'] = csv_file.name
                 
                 all_courses.append(df)
-                print(f"   ✓ Loaded {len(df)} courses from {csv_file.name}")
+                print(f"   Loaded {len(df)} courses from {csv_file.name}")
                 
             except Exception as e:
-                print(f"   ✗ Error loading {csv_file.name}: {e}")
+                print(f"   Error loading {csv_file.name}: {e}")
     
     # Combine all DataFrames
     if all_courses:
         combined_df = pd.concat(all_courses, ignore_index=True)
-        print(f"\n✅ Total courses loaded: {len(combined_df)}")
+        print(f"\nTotal courses loaded: {len(combined_df)}")
         return combined_df
     else:
-        print("❌ No courses loaded!")
+        print("No courses loaded!")
         return pd.DataFrame()
 
 
@@ -94,7 +94,7 @@ if __name__ == "__main__":
     # Test the loading
     courses_df = load_all_courses()
     if not courses_df.empty:
-        print("\n📊 Sample course:")
+        print("\nSample course:")
         print(courses_df.iloc[0])
-        print("\n📝 Prepared text:")
+        print("\nPrepared text:")
         print(prepare_course_text(courses_df.iloc[0]))

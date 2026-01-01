@@ -1,0 +1,13 @@
+
+# Google Gemini API Key
+GOOGLE_API_KEY="AIzaSyBhw7bqjAHWsbeVQX3_P6Lc9RXkCmfHLX0"
+# Flask Backend Configuration
+FLASK_PORT=5001
+FLASK_HOST=0.0.0.0
+FLASK_DEBUG=True
+
+# CORS Configuration
+FRONTEND_URL=http://localhost:3000
+
+# Frontend Configuration
+REACT_APP_API_URL=http://127.0.0.1:5001/api

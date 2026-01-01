@@ -1,3 +1,5 @@
+from dotenv import load_dotenv
+load_dotenv()
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
@@ -406,4 +408,4 @@ if __name__ == '__main__':
     print("="*60)
     print("🚀 DAAD Application System API Started")
     print("="*60)
-    app.run(debug=True, port=5000, host='0.0.0.0')
+    app.run(debug=True, port=5001, host='0.0.0.0')

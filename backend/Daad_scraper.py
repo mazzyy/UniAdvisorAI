@@ -235,7 +235,7 @@ def main():
         # Scrape page by page using offset
         page_number = 1
         offset = 0
-        limit = 100  # Results per page
+        limit = 100  
         
         while True:
             # Scrape current page
